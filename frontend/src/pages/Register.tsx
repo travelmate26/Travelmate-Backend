@@ -3,7 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { useGoogleLogin } from '@react-oauth/google';
 import { RecaptchaVerifier, signInWithPhoneNumber, type ConfirmationResult } from 'firebase/auth';
 import api from '../services/api';
-import { getFirebaseAuth } from '../lib/firebase';
+import { getFirebaseAuth, isFirebaseConfigured } from '../lib/firebase';
 import { toE164Phone } from '../utils/phone';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
@@ -48,6 +48,9 @@ export const Register: React.FC = () => {
   };
 
   const sendFirebaseOtp = async () => {
+    if (!isFirebaseConfigured()) {
+      throw new Error('Firebase is not configured. Add VITE_FIREBASE_* to your .env file.');
+    }
     const e164Phone = toE164Phone(phone);
     const auth = getFirebaseAuth();
     recaptchaRef.current?.clear();
