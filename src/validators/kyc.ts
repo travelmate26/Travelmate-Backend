@@ -3,9 +3,18 @@ import { z } from 'zod';
 export const submitKycSchema = z.object({
   idType: z.string().min(1),
   idNumber: z.string().min(1),
-  idFront: z.string().min(1),
-  idBack: z.string().min(1),
-  selfie: z.string().min(1),
+  idFront: z.string().min(1).optional(),
+  idBack: z.string().min(1).optional(),
+  selfie: z.string().min(1).optional(),
+  idDocumentUrl: z.string().optional(),
+  documentType: z.string().optional(),
+  utilityType: z.string().optional(),
+  addressDocumentUrl: z.string().optional(),
+  bankName: z.string().min(1),
+  bankCode: z.string().min(1),
+  accountNumber: z.string().min(10),
+  accountName: z.string().min(1),
+  faceImageUrl: z.string().optional(),
 });
 
 export const verifyAccountSchema = z.object({
@@ -15,7 +24,7 @@ export const verifyAccountSchema = z.object({
 
 export const faceVerificationSchema = z.object({
   selfie: z.string().min(1),
-  livenessData: z.record(z.unknown()).optional(),
+  livenessData: z.record(z.string(), z.unknown()).optional(),
 });
 
 export const verifyIdSchema = z.object({

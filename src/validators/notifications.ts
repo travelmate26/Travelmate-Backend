@@ -4,7 +4,7 @@ export const sendNotificationSchema = z.object({
   userId: z.string().min(1),
   title: z.string().min(1),
   body: z.string().optional(),
-  data: z.record(z.unknown()).optional(),
+  data: z.record(z.string(), z.unknown()).optional(),
 });
 
 export const registerTokenSchema = z.object({

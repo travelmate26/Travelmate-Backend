@@ -1,9 +1,9 @@
 import { Response } from 'express';
 import { supabaseAdmin } from '../config/supabase';
-import { AuthenticatedRequest } from '../types';
+import { AuthRequest } from '../middleware/auth';
 import type { InitializePaymentBody, ChargeCardBody, SaveCardBody } from '../validators/payments';
 
-export async function initializePayment(req: AuthenticatedRequest, res: Response): Promise<void> {
+export async function initializePayment(req: AuthRequest, res: Response): Promise<void> {
   try {
     const body = req.body as InitializePaymentBody;
     const reference = `pay_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
@@ -16,7 +16,7 @@ export async function initializePayment(req: AuthenticatedRequest, res: Response
   }
 }
 
-export async function verifyPayment(req: AuthenticatedRequest, res: Response): Promise<void> {
+export async function verifyPayment(req: AuthRequest, res: Response): Promise<void> {
   try {
     const reference = req.params.reference;
     const { data: payment, error } = await supabaseAdmin
@@ -38,7 +38,7 @@ export async function verifyPayment(req: AuthenticatedRequest, res: Response): P
   }
 }
 
-export async function chargeCard(req: AuthenticatedRequest, res: Response): Promise<void> {
+export async function chargeCard(req: AuthRequest, res: Response): Promise<void> {
   try {
     const body = req.body as ChargeCardBody;
     const reference = `charge_${Date.now()}`;
@@ -51,7 +51,7 @@ export async function chargeCard(req: AuthenticatedRequest, res: Response): Prom
   }
 }
 
-export async function getSavedMethods(req: AuthenticatedRequest, res: Response): Promise<void> {
+export async function getSavedMethods(req: AuthRequest, res: Response): Promise<void> {
   try {
     const userId = req.params.userId === 'me' ? req.user?.id : req.params.userId;
     if (!userId) {
@@ -70,7 +70,7 @@ export async function getSavedMethods(req: AuthenticatedRequest, res: Response):
   }
 }
 
-export async function saveCard(req: AuthenticatedRequest, res: Response): Promise<void> {
+export async function saveCard(req: AuthRequest, res: Response): Promise<void> {
   try {
     if (!req.user) {
       res.status(401).json({ error: 'Not authenticated' });
@@ -98,7 +98,7 @@ export async function saveCard(req: AuthenticatedRequest, res: Response): Promis
   }
 }
 
-export async function deleteMethod(req: AuthenticatedRequest, res: Response): Promise<void> {
+export async function deleteMethod(req: AuthRequest, res: Response): Promise<void> {
   try {
     if (!req.user) {
       res.status(401).json({ error: 'Not authenticated' });

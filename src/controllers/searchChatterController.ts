@@ -150,11 +150,11 @@ export async function acceptOffer(req: AuthenticatedRequest, res: Response): Pro
       .from('rides')
       .insert({
         driver_id: offer.driver_id,
-        origin: request.origin,
-        destination: request.destination,
+        from: request.origin,
+        to: request.destination,
         departure_time: offer.departure_time,
         available_seats: request.seats,
-        price: offer.price,
+        price_per_seat: offer.price,
         vehicle_id: offer.vehicle_id,
         status: 'active',
         preferences: {},

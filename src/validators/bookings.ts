@@ -12,7 +12,7 @@ export const cancelBookingSchema = z.object({
 
 export const payBookingSchema = z.object({
   paymentMethod: z.string().min(1),
-  amount: z.number().min(0),
+  amount: z.number().min(0).optional(),
 });
 
 export const rateBookingSchema = z.object({

@@ -3,7 +3,7 @@ import { z } from 'zod';
 export const initializePaymentSchema = z.object({
   amount: z.number().min(1),
   email: z.string().email(),
-  metadata: z.record(z.unknown()).optional(),
+  metadata: z.record(z.string(), z.unknown()).optional(),
 });
 
 export const chargeCardSchema = z.object({

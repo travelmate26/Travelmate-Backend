@@ -14,6 +14,8 @@ const router = Router();
 router.get('/services', billsController.listServices);
 router.get('/providers', billsController.listProviders);
 router.get('/data-plans', billsController.getDataPlans);
+router.get('/saved-plans/tv', billsController.getSavedTvPlans);
+router.get('/saved-plans/data', billsController.getSavedDataPlans);
 router.get('/history/:userId', requireAuth, billsController.getBillHistory);
 router.post('/airtime', requireAuth, validate(buyAirtimeSchema), billsController.buyAirtime);
 router.post('/data', requireAuth, validate(buyDataSchema), billsController.buyData);

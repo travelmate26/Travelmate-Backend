@@ -6,7 +6,7 @@ import * as paymentsController from '../controllers/paymentsController';
 
 const router = Router();
 
-router.post('/initialize', validate(initializePaymentSchema), paymentsController.initializePayment);
+router.post('/initialize', requireAuth, validate(initializePaymentSchema), paymentsController.initializePayment);
 router.get('/verify/:reference', paymentsController.verifyPayment);
 router.post('/charge-card', requireAuth, validate(chargeCardSchema), paymentsController.chargeCard);
 router.post('/methods/card', requireAuth, validate(saveCardSchema), paymentsController.saveCard);

@@ -1,5 +1,6 @@
 import { Response } from 'express';
 import { supabaseAdmin } from '../config/supabase';
+import { query, queryOne } from '../config/database';
 import { AuthenticatedRequest } from '../types';
 import type { CreateRatingBody, UpdateRatingBody } from '../validators/ratings';
 
@@ -48,20 +49,18 @@ export async function getUserRatings(req: AuthenticatedRequest, res: Response): 
     const pageSize = 20;
     const from = (pageNum - 1) * pageSize;
     const to = from + pageSize - 1;
-    let q = supabaseAdmin.from('ratings').select('*').eq('to_user_id', userId);
-    if (role) q = q.eq('role', String(role));
-    q = q.order('created_at', { ascending: false }).range(from, to);
-    const { data: ratings, error } = await q;
-    if (error) {
-      res.status(400).json({ error: error.message });
-      return;
+    const params: any[] = [userId];
+    let sql = 'SELECT * FROM ratings WHERE to_user_id = $1';
+    if (role) {
+      sql += ' AND role = $' + (params.length + 1);
+      params.push(String(role));
     }
-    const { data: avg } = await supabaseAdmin
-      .from('ratings')
-      .select('rating')
-      .eq('to_user_id', userId);
-    const sum = (avg ?? []).reduce((s: number, r: { rating: number }) => s + r.rating, 0);
-    const count = (avg ?? []).length;
+    sql += ' ORDER BY created_at DESC OFFSET $' + (params.length + 1) + ' LIMIT $' + (params.length + 2);
+    params.push(from, pageSize);
+    const ratings = await query(sql, params);
+    const avgRows = await query('SELECT rating FROM ratings WHERE to_user_id = $1', [userId]);
+    const sum = avgRows.reduce((s: number, r: { rating: number }) => s + r.rating, 0);
+    const count = avgRows.length;
     const average = count ? sum / count : 0;
     res.json({ ratings: ratings ?? [], average: Math.round(average * 100) / 100 });
   } catch (e) {
@@ -72,14 +71,7 @@ export async function getUserRatings(req: AuthenticatedRequest, res: Response): 
 export async function getBookingRatings(req: AuthenticatedRequest, res: Response): Promise<void> {
   try {
     const bookingId = req.params.bookingId;
-    const { data: ratings, error } = await supabaseAdmin
-      .from('ratings')
-      .select('*')
-      .eq('booking_id', bookingId);
-    if (error) {
-      res.status(400).json({ error: error.message });
-      return;
-    }
+    const ratings = await query('SELECT * FROM ratings WHERE booking_id = $1', [bookingId]);
     const list = ratings ?? [];
     const driverRating = list.find((r: { role: string }) => r.role === 'driver') ?? null;
     const riderRating = list.find((r: { role: string }) => r.role === 'rider') ?? null;
@@ -97,12 +89,8 @@ export async function updateRating(req: AuthenticatedRequest, res: Response): Pr
     }
     const ratingId = req.params.ratingId;
     const body = req.body as UpdateRatingBody;
-    const { data: existing, error: fetchError } = await supabaseAdmin
-      .from('ratings')
-      .select('from_user_id')
-      .eq('id', ratingId)
-      .single();
-    if (fetchError || !existing) {
+    const existing = await queryOne('SELECT from_user_id FROM ratings WHERE id = $1', [ratingId]);
+    if (!existing) {
       res.status(404).json({ error: 'Rating not found' });
       return;
     }
@@ -136,12 +124,8 @@ export async function deleteRating(req: AuthenticatedRequest, res: Response): Pr
       return;
     }
     const ratingId = req.params.ratingId;
-    const { data: existing, error: fetchError } = await supabaseAdmin
-      .from('ratings')
-      .select('from_user_id')
-      .eq('id', ratingId)
-      .single();
-    if (fetchError || !existing) {
+    const existing = await queryOne('SELECT from_user_id FROM ratings WHERE id = $1', [ratingId]);
+    if (!existing) {
       res.status(404).json({ error: 'Rating not found' });
       return;
     }
@@ -167,14 +151,7 @@ export async function getRatingSummary(req: AuthenticatedRequest, res: Response)
       res.status(401).json({ error: 'Not authenticated' });
       return;
     }
-    const { data: ratings, error } = await supabaseAdmin
-      .from('ratings')
-      .select('rating')
-      .eq('to_user_id', userId);
-    if (error) {
-      res.status(400).json({ error: error.message });
-      return;
-    }
+    const ratings = await query('SELECT rating FROM ratings WHERE to_user_id = $1', [userId]);
     const list = ratings ?? [];
     const sum = list.reduce((s: number, r: { rating: number }) => s + r.rating, 0);
     const count = list.length;

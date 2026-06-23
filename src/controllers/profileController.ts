@@ -1,5 +1,6 @@
 import { Response } from 'express';
 import { supabaseAdmin } from '../config/supabase';
+import { query, queryOne } from '../config/database';
 import { AuthenticatedRequest } from '../types';
 import type { UpdateProfileBody, AddVehicleBody, UpdateVehicleBody } from '../validators/profile';
 
@@ -10,12 +11,8 @@ export async function getProfile(req: AuthenticatedRequest, res: Response): Prom
       res.status(401).json({ error: 'Not authenticated' });
       return;
     }
-    const { data: profile, error } = await supabaseAdmin
-      .from('profiles')
-      .select('*')
-      .eq('user_id', userId)
-      .single();
-    if (error || !profile) {
+    const profile = await queryOne('SELECT * FROM profiles WHERE user_id = $1', [userId]);
+    if (!profile) {
       res.status(404).json({ error: 'Profile not found' });
       return;
     }
@@ -94,11 +91,7 @@ export async function getRating(req: AuthenticatedRequest, res: Response): Promi
       res.status(401).json({ error: 'Not authenticated' });
       return;
     }
-    const { data: profile } = await supabaseAdmin
-      .from('profiles')
-      .select('rating, total_ratings')
-      .eq('user_id', userId)
-      .single();
+    const profile = await queryOne('SELECT rating, total_ratings FROM profiles WHERE user_id = $1', [userId]);
     const rating = profile?.rating ?? 0;
     const totalRatings = profile?.total_ratings ?? 0;
     res.json({ rating, totalRatings });
@@ -114,14 +107,27 @@ export async function getStats(req: AuthenticatedRequest, res: Response): Promis
       res.status(401).json({ error: 'Not authenticated' });
       return;
     }
-    const { data: profile } = await supabaseAdmin
-      .from('profiles')
-      .select('trips_count, earnings_total')
-      .eq('user_id', userId)
-      .single();
+
+    const profile = await queryOne('SELECT trips_count, earnings_total, rating FROM profiles WHERE user_id = $1', [userId]);
+    if (!profile) {
+      res.status(404).json({ error: 'Profile not found' });
+      return;
+    }
+
+    const activeRides = await query('SELECT id FROM rides WHERE driver_id = $1 AND status = $2', [userId, 'active']);
+
+    let pendingRequests = 0;
+    if (activeRides && activeRides.length > 0) {
+      const rideIds = activeRides.map((r: any) => r.id);
+      const pendingBookings = await query('SELECT id FROM bookings WHERE ride_id = ANY($1::uuid[]) AND status = $2', [rideIds, 'pending']);
+      pendingRequests = pendingBookings?.length ?? 0;
+    }
+
     res.json({
-      trips: profile?.trips_count ?? 0,
-      earnings: profile?.earnings_total ?? 0,
+      trips: profile.trips_count ?? 0,
+      earnings: profile.earnings_total ?? 0,
+      rating: profile.rating ?? 0,
+      pendingRequests,
     });
   } catch (e) {
     res.status(500).json({ error: 'Internal server error' });
@@ -135,15 +141,7 @@ export async function getVehicles(req: AuthenticatedRequest, res: Response): Pro
       res.status(401).json({ error: 'Not authenticated' });
       return;
     }
-    const { data: vehicles, error } = await supabaseAdmin
-      .from('vehicles')
-      .select('*')
-      .eq('user_id', userId)
-      .order('is_primary', { ascending: false });
-    if (error) {
-      res.status(400).json({ error: error.message });
-      return;
-    }
+    const vehicles = await query('SELECT * FROM vehicles WHERE user_id = $1 ORDER BY is_primary DESC', [userId]);
     res.json({ vehicles: vehicles ?? [] });
   } catch (e) {
     res.status(500).json({ error: 'Internal server error' });
@@ -158,7 +156,7 @@ export async function addVehicle(req: AuthenticatedRequest, res: Response): Prom
       return;
     }
     const body = req.body as AddVehicleBody;
-    const { data: vehicles } = await supabaseAdmin.from('vehicles').select('id').eq('user_id', userId);
+    const vehicles = await query('SELECT id FROM vehicles WHERE user_id = $1', [userId]);
     const isFirst = !vehicles?.length;
     const { data: vehicle, error } = await supabaseAdmin
       .from('vehicles')
@@ -266,6 +264,62 @@ export async function setPrimaryVehicle(req: AuthenticatedRequest, res: Response
       return;
     }
     res.json({ success: true });
+  } catch (e) {
+    res.status(500).json({ error: 'Internal server error' });
+  }
+}
+
+export async function getNotificationSettings(req: AuthenticatedRequest, res: Response): Promise<void> {
+  try {
+    const userId = req.params.userId === 'me' ? req.user?.id : req.params.userId;
+    if (!userId) {
+      res.status(401).json({ error: 'Not authenticated' });
+      return;
+    }
+    const profile = await queryOne('SELECT notification_settings FROM profiles WHERE user_id = $1', [userId]);
+      
+    if (!profile) {
+      res.status(404).json({ error: 'Profile not found' });
+      return;
+    }
+    
+    const defaultSettings = {
+      push: true, email: true, sms: false,
+      paymentReceived: true, paymentRefunded: true, walletUpdates: true, withdrawalStatus: true,
+      newMessages: true, missedCalls: true,
+      driverArrival: true, tripStarted: true, tripCompleted: true,
+      bookingRequests: true, bookingConfirmed: true, bookingCancelled: true, riderNoShow: true,
+      tripReminders: true, tripUpdates: true
+    };
+    
+    const settings = profile?.notification_settings || defaultSettings;
+    res.json({ settings });
+  } catch (e) {
+    res.status(500).json({ error: 'Internal server error' });
+  }
+}
+
+export async function updateNotificationSettings(req: AuthenticatedRequest, res: Response): Promise<void> {
+  try {
+    const userId = req.params.userId === 'me' ? req.user?.id : req.params.userId;
+    if (!req.user || req.user.id !== userId) {
+      res.status(403).json({ error: 'Forbidden' });
+      return;
+    }
+    
+    const newSettings = req.body.settings;
+    const { data: profile, error } = await supabaseAdmin
+      .from('profiles')
+      .update({ notification_settings: newSettings, updated_at: new Date().toISOString() })
+      .eq('user_id', userId)
+      .select('notification_settings')
+      .single();
+      
+    if (error) {
+      res.status(400).json({ error: error.message });
+      return;
+    }
+    res.json({ settings: profile.notification_settings });
   } catch (e) {
     res.status(500).json({ error: 'Internal server error' });
   }

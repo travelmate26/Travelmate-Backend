@@ -9,7 +9,7 @@ export function validate(schema: ZodSchema, source: ValidateSource = 'body') {
     const result = schema.safeParse(data);
     if (result.success) {
       if (source === 'body') req.body = result.data;
-      else if (source === 'query') req.query = result.data;
+      else if (source === 'query') req.query = result.data as typeof req.query;
       else req.params = result.data as typeof req.params;
       next();
       return;

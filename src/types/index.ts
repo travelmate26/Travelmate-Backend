@@ -1,5 +1,4 @@
 import { Request } from 'express';
-import { User as SupabaseUser } from '@supabase/supabase-js';
 
 export type UserRole = 'rider' | 'driver' | 'admin';
 
@@ -31,6 +30,18 @@ export interface Vehicle {
   [key: string]: unknown;
 }
 
+export interface LocalUser {
+  id: string;
+  email?: string;
+  phone?: string;
+  role?: string;
+  full_name?: string | null;
+  first_name?: string | null;
+  last_name?: string | null;
+  profile_picture?: string | null;
+  avatar_url?: string | null;
+}
+
 export interface AuthUser {
   id: string;
   email?: string;
@@ -39,8 +50,8 @@ export interface AuthUser {
 }
 
 export interface AuthenticatedRequest extends Request {
-  user?: SupabaseUser;
-  accessToken?: string;
+  userId?: string;
+  user?: LocalUser;
 }
 
 export interface KycStatus {

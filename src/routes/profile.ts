@@ -22,6 +22,11 @@ router.put('/:userId', requireAuth, validate(updateProfileSchema), profileContro
 router.post('/:userId/avatar', requireAuth, upload.single('image'), profileController.uploadAvatar);
 router.get('/:userId/rating', requireAuth, profileController.getRating);
 router.get('/:userId/stats', requireAuth, profileController.getStats);
+
+// Notification Settings
+router.get('/:userId/notification-settings', requireAuth, profileController.getNotificationSettings);
+router.put('/:userId/notification-settings', requireAuth, profileController.updateNotificationSettings);
+
 router.get('/:userId/vehicles', requireAuth, profileController.getVehicles);
 router.post('/:userId/vehicles', requireAuth, validate(addVehicleSchema), profileController.addVehicle);
 router.put('/:userId/vehicles/:vehicleId', requireAuth, validate(updateVehicleSchema), profileController.updateVehicle);

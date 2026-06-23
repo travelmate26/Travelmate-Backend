@@ -5,7 +5,7 @@ import type { SendNotificationBody, RegisterTokenBody, UnregisterTokenBody } fro
 
 export async function getNotifications(req: AuthenticatedRequest, res: Response): Promise<void> {
   try {
-    const userId = req.params.userId === 'me' ? req.user?.id : req.params.userId;
+    const userId = req.params.userId === 'me' || !req.params.userId ? req.user?.id : req.params.userId;
     if (!userId) {
       res.status(401).json({ error: 'Not authenticated' });
       return;
@@ -50,7 +50,7 @@ export async function markNotificationRead(req: AuthenticatedRequest, res: Respo
 
 export async function markAllRead(req: AuthenticatedRequest, res: Response): Promise<void> {
   try {
-    const userId = req.params.userId === 'me' ? req.user?.id : req.params.userId;
+    const userId = req.params.userId === 'me' || !req.params.userId ? req.user?.id : req.params.userId;
     if (!userId) {
       res.status(401).json({ error: 'Not authenticated' });
       return;
@@ -114,11 +114,11 @@ export async function registerPushToken(req: AuthenticatedRequest, res: Response
       return;
     }
     const body = req.body as RegisterTokenBody;
-    await supabaseAdmin.from('push_tokens').upsert(
+    await supabaseAdmin.from('user_fcm_tokens').upsert(
       {
         user_id: req.user.id,
         token: body.token,
-        device: body.device ?? null,
+        device_type: body.device ?? null,
         updated_at: new Date().toISOString(),
       },
       { onConflict: 'user_id,token' }
@@ -136,7 +136,7 @@ export async function unregisterPushToken(req: AuthenticatedRequest, res: Respon
       return;
     }
     const body = req.body as UnregisterTokenBody;
-    await supabaseAdmin.from('push_tokens').delete().eq('user_id', req.user.id).eq('token', body.token);
+    await supabaseAdmin.from('user_fcm_tokens').delete().eq('user_id', req.user.id).eq('token', body.token);
     res.json({ success: true });
   } catch (e) {
     res.status(500).json({ error: 'Internal server error' });

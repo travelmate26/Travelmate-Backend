@@ -2,6 +2,7 @@ import { Response } from 'express';
 import { supabaseAdmin } from '../config/supabase';
 import { AuthenticatedRequest } from '../types';
 import type { BuyAirtimeBody, BuyDataBody, PayElectricityBody, VerifyMeterBody } from '../validators/bills';
+import { loadAllSavedPlans } from '../routes/vtpassAdmin';
 
 export async function listServices(_req: AuthenticatedRequest, res: Response): Promise<void> {
   try {
@@ -116,13 +117,58 @@ export async function payElectricity(req: AuthenticatedRequest, res: Response): 
 
 export async function getDataPlans(req: AuthenticatedRequest, res: Response): Promise<void> {
   try {
-    const { network } = req.query;
-    const plans = network
-      ? [{ id: `${network}-1gb`, name: '1GB', amount: 500 }, { id: `${network}-2gb`, name: '2GB', amount: 1000 }]
-      : [{ id: '1gb', name: '1GB', amount: 500 }, { id: '2gb', name: '2GB', amount: 1000 }, { id: '5gb', name: '5GB', amount: 2000 }];
+    const { network, type } = req.query;
+    let plans: any[];
+    if (type === 'electricity') {
+      plans = [
+        { id: 'prepaid-2000', name: 'Prepaid ₦2,000', price: 2000 },
+        { id: 'prepaid-5000', name: 'Prepaid ₦5,000', price: 5000 },
+        { id: 'prepaid-10000', name: 'Prepaid ₦10,000', price: 10000 },
+      ];
+    } else if (type === 'tv') {
+      plans = network
+        ? [{ id: `${network}-basic`, name: 'Basic', price: 1500 }, { id: `${network}-standard`, name: 'Standard', price: 3500 }]
+        : [{ id: 'gotv-basic', name: 'GOtv Basic', price: 1500 }, { id: 'gotv-standard', name: 'GOtv Standard', price: 3500 }, { id: 'dstv-premium', name: 'DStv Premium', price: 12000 }];
+    } else {
+      plans = network
+        ? [{ id: `${network}-1gb`, name: '1GB', price: 500 }, { id: `${network}-2gb`, name: '2GB', price: 1000 }]
+        : [{ id: '1gb', name: '1GB', price: 500 }, { id: '2gb', name: '2GB', price: 1000 }, { id: '5gb', name: '5GB', price: 2000 }];
+    }
     res.json({ plans });
   } catch (e) {
     res.status(500).json({ error: 'Internal server error' });
+  }
+}
+
+export async function getSavedTvPlans(req: AuthenticatedRequest, res: Response): Promise<void> {
+  try {
+    const allPlans = await loadAllSavedPlans();
+    const tvServices = ['dstv', 'gotv', 'startimes', 'showmax'];
+    const tvPlans = allPlans.filter(p => tvServices.includes((p.service || '').toLowerCase()));
+    res.json({ plans: tvPlans });
+  } catch (e) {
+    console.error('Failed to fetch saved TV plans:', e);
+    res.status(500).json({ error: 'Failed to fetch saved TV plans' });
+  }
+}
+
+export async function getSavedDataPlans(req: AuthenticatedRequest, res: Response): Promise<void> {
+  try {
+    const allPlans = await loadAllSavedPlans();
+    const dataServices = ['mtn-data', 'airtel-data', 'glo-data', 'etisalat-data'];
+    const serviceMap: Record<string, string> = {
+      'etisalat-data': '9mobile-data',
+    };
+    const dataPlans = allPlans
+      .filter(p => p.service && dataServices.includes(p.service.toLowerCase()))
+      .map(p => ({
+        ...p,
+        service: serviceMap[p.service.toLowerCase()] || p.service,
+      }));
+    res.json({ plans: dataPlans });
+  } catch (e) {
+    console.error('Failed to fetch saved data plans:', e);
+    res.status(500).json({ error: 'Failed to fetch saved data plans' });
   }
 }
 
